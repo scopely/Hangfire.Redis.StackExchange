@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,7 +55,7 @@ namespace Hangfire.Redis
                     var count = redis.ListLength(redisKey);
                     if (count == 0) continue;
 
-                    Logger.InfoFormat("Removing expired records from the '{0}' list...", key);
+                    Logger.DebugFormat("Removing expired records from the '{0}' list...", key);
                     
                     const int batchSize = 100;
                     var keysToRemove = new List<string>();
@@ -82,7 +83,7 @@ namespace Hangfire.Redis
                     
                     if (keysToRemove.Count == 0) continue;
 
-                    Logger.InfoFormat("Removing {0} expired jobs from '{1}' list...", keysToRemove.Count, key);
+                    Logger.Info($"Removing {keysToRemove.Count} expired jobs from '{key}' list...");
 
                     using (var transaction = connection.CreateWriteTransaction())
                     {
@@ -96,7 +97,13 @@ namespace Hangfire.Redis
                 }
             }
 
+            var watch = Stopwatch.StartNew();
             cancellationToken.WaitHandle.WaitOne(_checkInterval);
+            watch.Stop();
+            if (watch.Elapsed < _checkInterval)
+            {
+                Logger.Warn($"Waited for '{watch.Elapsed}' which was less than the check interval of '{_checkInterval}'");
+            }
         }
     }
 }
